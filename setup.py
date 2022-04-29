@@ -6,8 +6,8 @@ setup(
     version='0.0.1',
     author='rexxar&stephen',
     # py_modules=['mexcBacktest']
-    packages=find_packages('readyForInstall'),
-    package_dir = {'': 'readyForInstall'},
+    packages=find_packages(),
+    # package_dir = {'': 'readyForInstall'},
     install_requires = [
         'cached-property==1.5.2',
         'cycler==0.11.0',
