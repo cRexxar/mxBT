@@ -1,15 +1,15 @@
 from distutils.core import setup
 from setuptools import find_packages
-root = 'mexcBT'
+root = 'mxBT'
 
 setup(
-    name='mexcBT',
+    name=root,
     version='0.0.1',
     author='rexxar&stephen',
     # py_modules=['mexcBacktest']
     packages=[
         root,
-        *[f"{root}.{i}" for i in find_packages('mexcBT')]
+        *[f"{root}.{i}" for i in find_packages(root)]
     ],
     # package_dir = {'': 'readyForInstall'},
     install_requires = [
