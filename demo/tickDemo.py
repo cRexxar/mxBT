@@ -1,4 +1,4 @@
-from mexcBT.backTest import sdk
+from mxBT.backTest import sdk
 from collections import deque
 import pandas as pd
 
