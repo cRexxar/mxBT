@@ -1,4 +1,4 @@
-from mexcBT.backTest import sdk
+from mxBT.backTest import sdk
 
 class Strategy(sdk):
 

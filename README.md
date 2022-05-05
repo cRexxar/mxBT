@@ -3,7 +3,7 @@
 &nbsp;
 ##### 安装方法
 ###### Git
-```pip3 install git+https://github.com/cRexxar/mexcBT.git  ```
+```pip3 install git+https://github.com/cRexxar/mxBT.git  ```
 &nbsp;
 <!-- ###### pip -->
 ##### 使用基本方法及返回数值
