@@ -63,7 +63,7 @@
   盈亏比 总: 多: 空:
   平均持仓时间(mins) 总: 多: 空:
   ```
-  ![Alt](demo/tickResult.jpg)
+  ![Alt](demo/tickResult.png)
 &nbsp;
 ###### 基本变量参数
   * 订单/查询回报状态码
