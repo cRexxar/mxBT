@@ -441,67 +441,133 @@ class MatchMeta:
     
     def draw(self):
         self._sdk._log.write('等待画图.....')
-        import numpy as np
-        from matplotlib import pyplot as plt
-        import seaborn as sns
-        sns.set_style('darkgrid')
+        # from matplotlib import pyplot as plt
+        # import seaborn as sns
+        # sns.set_style('darkgrid')
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go 
         import time
         start = time.time()
 
-        ts = [self._sdk.getTime(i, strFormat='%Y%m%d %H') for i in self._tsList]
+        self._balance = self._balance[::120]
+        self._marketList = self._marketList[::120]
+        self._positions = self._positions[::120]
+        self.drawdownSeries = self.drawdownSeries.values.flatten()[::120]
+        self._tsList = self._tsList
+        ts = [self._sdk.getTime(i, strFormat='%Y-%m-%d %H:%M:%S') for i in self._tsList[::120]]
 
-        grid = plt.GridSpec(5, 1, wspace=0, hspace=0.1)
-        fig = plt.figure(figsize=(16, 8), layout='tight')
-        barWidth = int(len(self._balance)/200)
+        fig = make_subplots(
+            rows=3, 
+            cols=1, 
+            shared_xaxes=True, 
+            vertical_spacing=0.01, 
+            row_heights=[0.4,0.4,0.2], 
+            specs=[[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": True}]],
+            )
 
-        ax = fig.add_subplot(grid[0:2, 0], label='1', title='Performance')
-        ax.plot(self._balance/self._balance[0], label='strategy')
-        ax.plot(self._marketList/self._marketList[0], label='market', color='green')
-        ax.plot(self.drawdownSeries, color='r', label='drawback', linewidth=0.5)
+        fig.add_trace(go.Scatter(x=ts, y=self._positions, name='position', line_color='black', opacity=0.8), row=3, col=1)
 
-        ticks = ax.get_xticks()[1:-1]
-        labels = [ts[int(t)] if (t>=0 and t<len(ts)) else '' for t in ticks]
-        # noLabels = ['']*len(labels)
-        ax.set_xticks(ticks, labels=())
-        ax.legend(['strategy', 'market', 'drawback'])
+        fig.add_trace(go.Scatter(x=ts, y=self._balance/self._balance[0], name='strategy', line_color='blue'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=ts, y=self._marketList/self._marketList[0], name='market', line_color='black'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=ts, y=self.drawdownSeries, name='drawback', line_color='red'), row=1, col=1)
 
-        tmpArr = np.array(self._orders_actions)
-        tmpArr[:, 0] = [self._tsList.index(i) for i in tmpArr[:, 0]]
+        fig.add_trace(go.Scatter(x=ts, y=self._marketList, name='price', line_color='black', opacity=0.8), row=2, col=1)
 
-        ax = fig.add_subplot(grid[2:4, 0], label='2')
-        ax.plot(self._marketList, color='black', label='price', alpha=0.5)
-        ax.set_xticks(ticks, labels=())
-        cond1 = (tmpArr[:, 1]==1)*(tmpArr[:, 2]==1)
-        index1 = tmpArr[cond1, 0]
-        price1 = [self._marketList[int(i)] for i in index1]
-        cond2 = (tmpArr[:, 1]==1)*(tmpArr[:, 2]==-1)
-        index2 = tmpArr[cond2, 0]
-        price2 = [self._marketList[int(i)] for i in index2]
-        cond3 = (tmpArr[:, 1]==-1)*(tmpArr[:, 2]==1)
-        index3 = tmpArr[cond3, 0]
-        price3 = [self._marketList[int(i)] for i in index3]
-        cond4 = (tmpArr[:, 1]==-1)*(tmpArr[:, 2]==-1)
-        index4 = tmpArr[cond4, 0]
-        price4 = [self._marketList[int(i)] for i in index4]
-        ax.scatter(index1, price1, color='r', marker='o', label='openLong')
-        ax.scatter(index2, price2, color='r', marker='x', label='closeShort')
-        ax.scatter(index3, price3, color='green', marker='o', label='openShort')
-        ax.scatter(index4, price4, color='green', marker='x', label='closeLong')
-        ax.legend(['price', 'openLong', 'closeShort', 'openShort', 'closeLong'])
+        profits = []
+        profitsIdx = []
+        losses = []
+        lossesIdx = []
+        ol = []
+        olIdx = []
+        cl = []
+        clIdx = []
+        os = []
+        osIdx = []
+        cs = []
+        csIdx = []
+        for order in self._orders_actions:
+            t, side, offset, pl = order
+            index = self._tsList.index(t)//120
+            if pl>0:
+                profitsIdx.append(ts[index])
+                profits.append(pl)
+            elif pl<0:
+                lossesIdx.append(ts[index])
+                losses.append(pl)
+            if side==offset==1:
+                olIdx.append(ts[index])
+                ol.append(self._marketList[index])
+            elif side==offset==-1:
+                clIdx.append(ts[index])
+                cl.append(self._marketList[index]*1.002)
+            elif side==1 and offset==-1:
+                csIdx.append(ts[index])
+                cs.append(self._marketList[index]*1.002)
+            elif side==-1 and offset==1:
+                osIdx.append(ts[index])
+                os.append(self._marketList[index])
 
-        ax = fig.add_subplot(grid[4, 0], label='3')
-        ax.set_xticks(ticks, labels=labels)
-        ax.plot(self._positions, label='position')
-        ax.legend(['position'])
-        ax2 = ax.twinx()
-        cond1 = tmpArr[:, -1]>0
-        cond2 = tmpArr[:, -1]<0
-        ax2.bar(tmpArr[cond1, 0], tmpArr[cond1, -1], color='r', width=barWidth, label='profit')
-        ax2.bar(tmpArr[cond2, 0], tmpArr[cond2, -1], color='green', width=barWidth, label='loss')
-        ax2.legend(['profit', 'loss'])
+        fig.add_trace(go.Scatter(x=olIdx, y=ol, mode='markers', marker_symbol='circle', marker_color='red', name='open long', marker_size=10), row=2, col=1)
+        fig.add_trace(go.Scatter(x=clIdx, y=cl, mode='markers', marker_symbol='x', marker_color='green', name='close long', marker_size=10), row=2, col=1)
+        fig.add_trace(go.Scatter(x=osIdx, y=os, mode='markers', marker_symbol='circle', marker_color='green', name='open short', marker_size=10), row=2, col=1)
+        fig.add_trace(go.Scatter(x=csIdx, y=cs, mode='markers', marker_symbol='x', marker_color='red', name='close short', marker_size=10), row=2, col=1)
+        fig.add_trace(go.Bar(x=profitsIdx, y=profits, marker_color='red', name='profit'), row=3, col=1, secondary_y=True)
+        fig.add_trace(go.Bar(x=lossesIdx, y=losses, marker_color='green', name='loss'), row=3, col=1, secondary_y=True)
+
+        # fig.show()
+        # grid = plt.GridSpec(5, 1, wspace=0, hspace=0.1)
+        # fig = plt.figure(figsize=(16, 8), layout='tight')
+        # barWidth = int(len(self._balance)/200)
+
+        # ax = fig.add_subplot(grid[0:2, 0], label='1', title='Performance')
+        # ax.plot(self._balance/self._balance[0], label='strategy')
+        # ax.plot(self._marketList/self._marketList[0], label='market', color='green')
+        # ax.plot(self.drawdownSeries, color='r', label='drawback', linewidth=0.5)
+
+        # ticks = ax.get_xticks()[1:-1]
+        # labels = [ts[int(t)] if (t>=0 and t<len(ts)) else '' for t in ticks]
+        # # noLabels = ['']*len(labels)
+        # ax.set_xticks(ticks, labels=())
+        # ax.legend(['strategy', 'market', 'drawback'])
+
+        # tmpArr = np.array(self._orders_actions)
+        # tmpArr[:, 0] = [self._tsList.index(i) for i in tmpArr[:, 0]]
+
+        # ax = fig.add_subplot(grid[2:4, 0], label='2')
+        # ax.plot(self._marketList, color='black', label='price', alpha=0.5)
+        # ax.set_xticks(ticks, labels=())
+        # cond1 = (tmpArr[:, 1]==1)*(tmpArr[:, 2]==1)
+        # index1 = tmpArr[cond1, 0]
+        # price1 = [self._marketList[int(i)] for i in index1]
+        # cond2 = (tmpArr[:, 1]==1)*(tmpArr[:, 2]==-1)
+        # index2 = tmpArr[cond2, 0]
+        # price2 = [self._marketList[int(i)] for i in index2]
+        # cond3 = (tmpArr[:, 1]==-1)*(tmpArr[:, 2]==1)
+        # index3 = tmpArr[cond3, 0]
+        # price3 = [self._marketList[int(i)] for i in index3]
+        # cond4 = (tmpArr[:, 1]==-1)*(tmpArr[:, 2]==-1)
+        # index4 = tmpArr[cond4, 0]
+        # price4 = [self._marketList[int(i)] for i in index4]
+        # ax.scatter(index1, price1, color='r', marker='o', label='openLong')
+        # ax.scatter(index2, price2, color='r', marker='x', label='closeShort')
+        # ax.scatter(index3, price3, color='green', marker='o', label='openShort')
+        # ax.scatter(index4, price4, color='green', marker='x', label='closeLong')
+        # ax.legend(['price', 'openLong', 'closeShort', 'openShort', 'closeLong'])
+
+        # ax = fig.add_subplot(grid[4, 0], label='3')
+        # ax.set_xticks(ticks, labels=labels)
+        # ax.plot(self._positions, label='position')
+        # ax.legend(['position'])
+        # ax2 = ax.twinx()
+        # cond1 = tmpArr[:, -1]>0
+        # cond2 = tmpArr[:, -1]<0
+        # ax2.bar(tmpArr[cond1, 0], tmpArr[cond1, -1], color='r', width=barWidth, label='profit')
+        # ax2.bar(tmpArr[cond2, 0], tmpArr[cond2, -1], color='green', width=barWidth, label='loss')
+        # ax2.legend(['profit', 'loss'])
 
         self._sdk._log.write(f'画图完毕! 耗时:{(time.time()-start):0.2f}s')
-        plt.show()
+        # plt.show()
+        fig.show()
 
     def trade_orders_statistic(self):
         __trade_order_list = [order for _, order in self._trade_orders.items()]

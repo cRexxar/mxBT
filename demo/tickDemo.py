@@ -42,7 +42,6 @@ class Strategy(sdk):
         ''' 自定义算法模块 '''
 
         if self.totalNet>=self.value and not self.longFlag:
-            print([[i[0], i[1]] for i in depth[1][:10]])
             pos = self.fetch_user_position()['data']  # 获取仓位
 
             if len(pos)!=0:
