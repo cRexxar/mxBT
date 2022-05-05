@@ -1,13 +1,15 @@
 #### Depth/Kline回测框架系统
 本回测框架系统基于事件驱动,实现交易所合约数据的实时获取，可分别基于深度订单簿或K线数据进行订单撮合回测，完成回测盈利相关结果统计。
+&nbsp;
 ##### 安装方法
 ###### Git
-    
-###### pip
+```pip3 install git+https://github.com/cRexxar/mexcBT.git  ```
+&nbsp;
+<!-- ###### pip -->
 ##### 使用基本方法及返回数值
 ###### 回测策略基础框架
   ```python
-  from backtest import Process as sdk
+  from mexcBT.backTest import sdk
   
   class Strategy(sdk):
         def prepare(self):
@@ -26,27 +28,30 @@
             '''
             策略结束后用户自定义的复盘数据查看
             ''''
+
+  def main():
+        config = {
+          'h5Path'          # 用户h5文件夹路径
+          'strategy'        # 策略名称
+          'startDate'       # 回测开始时间
+          'endDate'         # 回测结束时间
+          'symbol'          # 回测交易标的
+          'exchange'        # 回测交易所指定
+          'cycle'           # 回测模式设置 订单簿回测tick K线回测 1min
+          'klineInterval'   # 提前声明需要用到的kline周期 ['3m', '1h', '1d', '1w', '2d']. default: []
+          'initCapital'     # 回测初始资金 5000
+          'capitalCoin'     # 回测本位币单位 'usdt
+          'fee'             #交易手续费  0.0005
+          'positionMode'    # 持仓模式 cross 双向持仓
+          'volumeThreshold' # 分钟线成交量撮合阈值. default: 0.2
+        }
+        task = Strategy(config)
+        task.run()
+  
+  if __name__ == '__main__':
+        main()
   ```
-###### 回测配置基础框架
-  ```python
-    config = {
-      'h5Path'          # 用户h5文件夹路径
-      'strategy'        # 策略名称
-      'startDate'       # 回测开始时间
-      'endDate'         # 回测结束时间
-      'symbol'          # 回测交易标的
-      'exchange'        # 回测交易所指定
-      'cycle'           # 回测模式设置 订单簿回测tick K线回测 1min
-      'klineInterval'   # 提前声明需要用到的kline周期 ['3m', '1h', '1d', '1w', '2d']
-      'initCapital'     # 回测初始资金 5000
-      'capitalCoin'     # 回测本位币单位 'usdt
-      'fee'             #交易手续费  0.0005
-      'positionMode'    # 持仓模式 cross 双向持仓
-      'volumeThreshold' # 分钟线成交量撮合阈值
-    }
-    task = Strategy(config)
-    task.run()
-  ```
+&nbsp;
 ###### 回测结果统计
   回测结束后自动产生回测结果及相关图像
   ```
@@ -58,6 +63,8 @@
   盈亏比 总: 多: 空:
   平均持仓时间(mins) 总: 多: 空:
   ```
+  ![Alt](demo/tickResult.jpg)
+&nbsp;
 ###### 基本变量参数
   * 订单/查询回报状态码
     - **100000**: **调用成功, 正常返回数据**
@@ -97,7 +104,7 @@
     * 获取当前订单簿
       * 获取方法
       ```python
-      def fetch_order_book(self, symbol, size):
+      def fetch_order_book(self, symbol, size=10):
         '''
         Args:
           symbol: 标的代码
@@ -134,7 +141,7 @@
     * 获取指定时间周期过去N跟K线
       * 获取方法
       ```python
-      def fetch_ohlcv(self, symbol, interval='1m', size=1, finished=False):
+      def fetch_ohlcv(self, symbol, interval='1m', size=1):
         '''
         Args:
           symbol: 标的代码
@@ -384,98 +391,119 @@
 ###### 限价单
   多单(空头)限价价格高于(低于)下一根一分钟K线开盘价,以开盘价计价匹配。价格低于(高于)开盘价，高于最低价(低于最高价)，以挂单价格计价匹配。单一分钟K线匹配量为设置阈值。
 
+&nbsp;
 #### Depth 模版
 ```python
 from mexcBT.backTest import sdk
-import numpy as np
+from collections import deque
+import pandas as pd
 
 class Strategy(sdk):
+
+
     def prepare(self):
-        """策略开始前的准备
+        """策略开始前的准备  config里的所有key都会赋值到self
         """        
-        self.flag = 0
-        self.net = 0
-        print(self.symbol)
-        self.longFlag = False
-        self.shortFlag = False
-        pass 
+        self.qty = 0.1  # 满仓下单量
+        self.length = 7200 # 队列长度
+        self.net = deque(maxlen=self.length)  # 定长队列
+        self.longFlag = False  # 是否持多仓
+        self.shortFlag = False  # 是否持空仓
+        self.totalNet = None  # 是否记录了总net
+        self.totalNetList = []  # 策略结束后复盘用
+        self.percent = 0.53  # 多空数量比
+        self.value = round(self.length*self.percent-self.length*(1-self.percent), 0)  # 多空flag差值
+        print(f"value: {self.value}")
 
     def perCycle(self):
         """按深度回放
         策略主逻辑
         """      
-        depth = self.fetch_order_book(self.symbol)
-        # print(depth)
-        bidVol = np.sum(depth[0, :, 1])
-        askVol = np.sum(depth[1, :, 1])
-        self.net += (bidVol-askVol)
-        # print(self.net)
-        # time.sleep(999)
-        if self.net>=1000 and not self.longFlag:
-            # print(self.net)
-            pos = self.fetch_user_position()['data']
+        depth = self.fetch_order_book(self.symbol)  # 拿取当前深度
+        bidVol = sum(depth[0, :5, 1])  # 算5档买量和
+        askVol = sum(depth[1, :5, 1])  # 算5档卖量和
+        flag = 1 if bidVol>askVol else -1  # 记压力flag
+
+        ''' 自定义算法模块 '''
+        if self.totalNet is not None:
+            self.totalNet += (flag-self.net[0])
+            self.totalNetList.append(self.totalNet)
+
+        self.net.append(flag)
+
+        if len(self.net)<self.length:
+            return
+        if len(self.net)==self.length and self.totalNet is None:
+            self.totalNet = sum(self.net)
+        ''' 自定义算法模块 '''
+
+        if self.totalNet>=self.value and not self.longFlag:
+            pos = self.fetch_user_position()['data']  # 获取仓位
 
             if len(pos)!=0:
                 short = {'position': i['position'] for i in pos if i['side']=='SHORT'}.get('position', 0)
-                # print(pos, short)
             else:
                 short = 0
             if short != 0:
-                res = self.create_order(self.symbol, 0, qty=short, side='CLOSE_SHORT', type='MARKET')
-            # time.sleep(999)
-            # print(depth[1][0][0])
-            res = self.create_order(self.symbol, 0, qty=0.01, side='LONG', type='MARKET')
-            # print(res)
+                # 若有空仓先平仓
+                self.create_order(self.symbol, 0, qty=short, side='CLOSE_SHORT', type='MARKET')  # 下市价单
+            self.create_order(self.symbol, 0, qty=self.qty, side='LONG', type='MARKET')  # 下市价单
+            
+            # 避免重复开仓
             self.longFlag = True
             self.shortFlag = False
-            # print(self.fetch_user_position())
-            # time.sleep(2)
-        #     pass
-        elif self.net<=-1000 and not self.shortFlag:
-            pos = self.fetch_user_position()['data']
+
+        elif self.totalNet<=-self.value and not self.shortFlag:
+            pos = self.fetch_user_position()['data']  # 获取仓位
             if len(pos)!=0:
                 long = {'position': i['position'] for i in pos if i['side']=='LONG'}.get('position', 0)
             else:
                 long = 0
             if long != 0:
-                self.create_order(self.symbol, 1, qty=long, side='CLOSE_LONG', type='MARKET')
-            self.create_order(self.symbol, 1, qty=0.01, side='SHORT', type='MARKET')
+                self.create_order(self.symbol, 0, qty=long, side='CLOSE_LONG', type='MARKET')  # 下市价单
+            self.create_order(self.symbol, 0, qty=self.qty, side='SHORT', type='MARKET')  # 下市价单
+            
+            # 避免重复开仓
             self.shortFlag = True
             self.longFlag = False
-        pass 
 
     def review(self):
-        """策略结束后的复盘
+        """策略结束后 用户自定义的复盘
         """         
-        pass
+        data = pd.DataFrame(self.totalNetList)
+        print(data.describe())  # 查看flag序列总结
+
 
 def main():
     config = {
-        'h5Path': '/Users/admin/python3/ReCrypto/dataBase',  # 用户h5文件夹路径
-        'strategy': 'dualThrust',
+        'h5Path': '/Users/admin/python3/ReCrypto/dataBase/h5/binanceUsdtSwap/btc-usdt',  # 用户h5文件夹路径
+        'strategy': 'tickDemo',
         'startDate': 20220422,
         'endDate': 20220427,
         'symbol': 'btc/usdt',
         'exchange': 'binanceUsdtSwap',
-        'cycle': '1min', #tick or 1min
-        'klineInterval': ['3m', '1h', '1d', '1w', '2d'],  # 提前声明需要用到的kline周期
+        'cycle': 'tick', #tick or 1min
+        
         'initCapital': 5000,
         'capitalCoin': 'usdt',
         'fee': 0.0005,  
         'positionMode': 'cross',  # 双向持仓
-        'volumeThreshold': 0.5,  # 分钟线成交量撮合阈值
     }
     task = Strategy(config)
     task.run()
 
+
 if __name__ == '__main__':
     main()
 ```
+&nbsp;
 #### Kline 模版
 ```python
-from mexcDB.backTest import sdk
+from mexcBT.backTest import sdk
 
 class Strategy(sdk):
+
+
     def prepare(self):
         """策略开始前的准备  config里的所有key都会赋值到self
         """        
@@ -483,13 +511,15 @@ class Strategy(sdk):
         self.qty = 0.1
         self.longFlag = False
         self.shortFlag = False
+        self.size = 500
         pass
+
     def perCycle(self):
         """按深度回放
         策略主逻辑
         """      
-        kline = self.fetch_ohlcv(self.symbol, '1m', size=500)
-        if len(kline)<500:
+        kline = self.fetch_ohlcv(self.symbol, '1m', size=self.size)
+        if len(kline)<self.size:
             return
         else:
             if not self.longFlag and kline[-1][4] > max(i[1] for i in kline[:-1]):
@@ -503,7 +533,6 @@ class Strategy(sdk):
                 if short != 0:
                     # 若有空仓先平仓
                     res = self.create_order(self.symbol, 0, qty=short, side='CLOSE_SHORT', type='MARKET')  # 下市价单
-                    print(res)
                 self.create_order(self.symbol, 0, qty=self.qty, side='LONG', type='MARKET')  # 下市价单
                 self.longFlag = True
                 self.shortFlag = False
@@ -522,29 +551,35 @@ class Strategy(sdk):
                 # 避免重复开仓
                 self.shortFlag = True
                 self.longFlag = False       
+
+
     def review(self):
         """策略结束后 用户自定义的复盘
         """         
         pass
 
+
+
 def main():
     config = {
-        'h5Path': '/Users/admin/python3/ReCrypto/dataBase',  # 用户h5文件夹路径
-        'strategy': 'dualThrust',
+        'h5Path': '/Users/admin/python3/ReCrypto/dataBase/h5/binanceUsdtSwap/btc-usdt',  # 用户h5文件夹路径
+        'strategy': 'klineDemo',
         'startDate': 20220422,
-        'endDate': 20220427,
+        'endDate': 20220428,
         'symbol': 'btc/usdt',
         'exchange': 'binanceUsdtSwap',
         'cycle': '1min', #tick or 1min
         'klineInterval': ['3m', '1h', '1d', '1w', '2d'],  # 提前声明需要用到的kline周期
+        
         'initCapital': 5000,
         'capitalCoin': 'usdt',
         'fee': 0.0005,  
         'positionMode': 'cross',  # 双向持仓
-        'volumeThreshold': 0.5,  # 分钟线成交量撮合阈值
+        # 'volumeThreshold': 0.5,  分钟线成交量撮合阈值
     }
     task = Strategy(config)
     task.run()
+
 
 if __name__ == '__main__':
     main()

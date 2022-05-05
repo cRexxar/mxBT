@@ -1,2 +1,4 @@
-/demo/.DS*
+.DS*
 *pyc
+*.log
+*Demo.py

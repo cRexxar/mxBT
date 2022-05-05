@@ -84,7 +84,7 @@ class Strategy(sdk):
 
 def main():
     config = {
-        'h5Path': '/Users/admin/python3/ReCrypto/dataBase',  # 用户h5文件夹路径
+        'h5Path': '/Users/admin/python3/ReCrypto/dataBase/h5/binanceUsdtSwap/btc-usdt',  # 用户h5文件夹路径
         'strategy': 'tickDemo',
         'startDate': 20220422,
         'endDate': 20220427,
