@@ -6,14 +6,23 @@
 ```pip3 install git+https://github.com/cRexxar/mxBT.git  ```
 &nbsp;
 ##### 基本数据介绍及获取方法
-```
-基本数据目前只支持binanceU本位永续合约所有交易对 三个种类 深度(500ms), 逐笔成交，1分钟k线; 
+
+基本数据目前只支持binanceU本位永续合约所有交易对 
+三个种类 深度(500ms), 逐笔成交，1分钟k线; 
 每日北京时间上午1点完成更新
 
 下载方法：
 1. 需要一个跳板机账号，并且有 策略回测框架 服务器可下载权限
 2. 进入跳板机网页控制台 文件管理 /default/策略回测框架部署
 3. 下载需要的币种h5数据文件至本地自定义路径
+
+```python
+#向量化调取
+from mxBT.backTest import db
+db = db("path")
+db.getTick(symbol='btc/usdt', date='20220504')
+db.getDepth(symbol='btc/usdt', date='20220504')
+db.getKline1m(symbol='btc/usdt', date='20220504')
 ```
 &nbsp;
 <!-- ###### pip -->

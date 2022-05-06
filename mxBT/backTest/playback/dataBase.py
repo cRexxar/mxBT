@@ -42,7 +42,7 @@ class Core():
             dic = {k: v[:] if k!='head' else [i.decode() for i in v[:]] for k, v in f.items()}
         return dic        
 
-SDK = Core()
+db = Core
 
         
 
