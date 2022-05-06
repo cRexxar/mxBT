@@ -425,8 +425,9 @@ class MatchMeta:
         self._sdk._log.write(content)
     
     def evaluate(self):
+        self._balance = self._balance[::120]
         netAsset = self._balance[-1]/self._balance[0]
-        annualReturn = (netAsset-1)/(len(self._balance)-1)*365
+        annualReturn = (netAsset-1)/(len(self._sdk._playback.dateList)-1)*365
         netAssetDF = pd.DataFrame(self._balance)
         self.drawdownSeries = netAssetDF/netAssetDF.cummax()
         maxDrawdown = self.drawdownSeries.min().values[0]-1
@@ -446,10 +447,10 @@ class MatchMeta:
         import time
         start = time.time()
 
-        self._balance = self._balance[::120]
+        self._balance = self._balance
         self._marketList = self._marketList[::120]
         self._positions = self._positions[::120]
-        self.drawdownSeries = self.drawdownSeries.values.flatten()[::120]
+        self.drawdownSeries = self.drawdownSeries.values.flatten()
         self._tsList = self._tsList
         ts = [self._sdk.getTime(i, strFormat='%Y-%m-%d %H:%M:%S') for i in self._tsList[::120]]
 

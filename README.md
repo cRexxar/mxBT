@@ -5,11 +5,21 @@
 ###### Git
 ```pip3 install git+https://github.com/cRexxar/mxBT.git  ```
 &nbsp;
+##### 基本数据介绍及获取方法
+```
+基本数据目前只支持binanceU本位永续合约所有交易对 三个种类 深度(500ms), 逐笔成交，1分钟k线; 每日北京时间上午1点完成更新
+
+下载方法：
+1. 需要一个跳板机账号，并且有 策略回测框架 服务器可下载权限
+2. 进入跳板机网页控制台 文件管理 /default/策略回测框架部署
+3. 下载需要的币种h5数据文件至本地自定义路径
+```
+&nbsp;
 <!-- ###### pip -->
 ##### 使用基本方法及返回数值
 ###### 回测策略基础框架
   ```python
-  from mexcBT.backTest import sdk
+  from mxBT.backTest import sdk
   
   class Strategy(sdk):
         def prepare(self):
@@ -394,7 +404,7 @@
 &nbsp;
 #### Depth 模版
 ```python
-from mexcBT.backTest import sdk
+from mxBT.backTest import sdk
 from collections import deque
 import pandas as pd
 
@@ -499,7 +509,7 @@ if __name__ == '__main__':
 &nbsp;
 #### Kline 模版
 ```python
-from mexcBT.backTest import sdk
+from mxBT.backTest import sdk
 
 class Strategy(sdk):
 
