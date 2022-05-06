@@ -3,7 +3,7 @@
 &nbsp;
 ##### 安装方法
 ###### Git
-```pip3 install git+https://github.com/cRexxar/mxBT.git  ```
+```pip3 install git+http://git.mxcpro.com/mexc/mxbt.git ```
 &nbsp;
 ##### 基本数据介绍及获取方法
 
