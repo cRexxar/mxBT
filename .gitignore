@@ -2,3 +2,5 @@
 *pyc
 *.log
 *Demo.py
+env/
+requirements.txt

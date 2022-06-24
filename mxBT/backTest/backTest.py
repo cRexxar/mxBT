@@ -87,8 +87,31 @@ class Process():
     
     # def getKline(self):
     #     return self._playback.klines
+    def addPlot(self, name:str, ts:list, data:list, mode:str, on_market_plot:bool):
+        if len(ts) != len(data):
+            print('length error')
+            return False
+        if mode != 'lines' and mode != 'markers' and mode != 'lines+markers':
+            print('mode error')
+            return False
+        if on_market_plot:
+            self._match.add_market_plot({
+                "ts": ts,
+                "name": name,
+                "data": data,
+                "mode": mode,
+            })
+        else:
+            self._match.add_addition_plots({
+                "ts": ts,
+                "name": name,
+                "data": data,
+                "mode": mode
+            })
+        return True
     
     def fetch_order_book(self, symbol, size=10):
+
         # result = {
         #     'code': 100000,
         #     'msg': '',
