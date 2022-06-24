@@ -247,8 +247,8 @@ class MatchMeta:
         self._cur_balance['free'] = self._format_data(self._cur_balance['free'] + __delta_unrealized_pnl)                                       # 更新账户可用资金
         self._cur_balance['unrealised_pnl'] = __unrealized_pnl                                                                                  # 更新账户浮盈
         
-        assert round(self._cur_balance['total'], 4) == round(self._cur_balance['free'] + self._cur_balance['total_margin'] + self._cur_balance['frozen'], 4)
-        assert round(self._initial_capital,4) == round(self._cur_balance['total'] + self._cur_balance['fee'] - self._cur_balance['unrealised_pnl'] - self._cur_balance['realized_pnl'], 4)
+        assert round(self._cur_balance['total'], 3) == round(self._cur_balance['free'] + self._cur_balance['total_margin'] + self._cur_balance['frozen'], 3)
+        assert round(self._initial_capital, 3) == round(self._cur_balance['total'] + self._cur_balance['fee'] - self._cur_balance['unrealised_pnl'] - self._cur_balance['realized_pnl'], 3)
         return self._format_return(data=trade_order_id_pairs)
             
     def _open_orders_match(self):
@@ -425,7 +425,8 @@ class MatchMeta:
         self._sdk._log.write(content)
     
     def evaluate(self):
-        self._balance = self._balance[::120]
+        self.drawCycle = self._sdk._config['cycle']
+        self._balance = self._balance[::120] if self.drawCycle=='tick' else self._balance
         netAsset = self._balance[-1]/self._balance[0]
         annualReturn = (netAsset-1)/(len(self._sdk._playback.dateList)-1)*365
         netAssetDF = pd.DataFrame(self._balance)
@@ -448,11 +449,11 @@ class MatchMeta:
         start = time.time()
 
         self._balance = self._balance
-        self._marketList = self._marketList[::120]
-        self._positions = self._positions[::120]
+        self._marketList = self._marketList[::120] if self.drawCycle=='tick' else self._marketList
+        self._positions = self._positions[::120] if self.drawCycle=='tick' else self._positions
         self.drawdownSeries = self.drawdownSeries.values.flatten()
-        self._tsList = self._tsList
-        ts = [self._sdk.getTime(i, strFormat='%Y-%m-%d %H:%M:%S') for i in self._tsList[::120]]
+        self._tsList = self._tsList[::120] if self.drawCycle=='tick' else self._tsList
+        ts = [self._sdk.getTime(i, strFormat='%Y-%m-%d %H:%M:%S') for i in self._tsList]
 
         fig = make_subplots(
             rows=3, 
@@ -482,9 +483,10 @@ class MatchMeta:
         osIdx = []
         cs = []
         csIdx = []
+        adjust = 120 if self.drawCycle=='tick' else 1
         for order in self._orders_actions:
             t, side, offset, pl = order
-            index = self._tsList.index(t)//120
+            index = self._tsList.index(t)//adjust 
             if pl>0:
                 profitsIdx.append(ts[index])
                 profits.append(pl)
