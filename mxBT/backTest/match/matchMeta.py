@@ -59,6 +59,16 @@ class MatchMeta:
         self._position_mode = self._sdk._config['positionMode'] # 持仓模式,单向 single / 双项 cross
         self._precision = self._sdk._config.get('precision', 0) # 结果统计小数保留
         self._orders_actions = []
+        self.sub_market_plot = []
+        self.addition_plots = []
+
+    def add_market_plot(self, draw_dict:dict):
+        self.sub_market_plot.append(draw_dict)
+        return True
+        
+    def add_addition_plots(self, draw_dict:dict):
+        self.addition_plots.append(draw_dict)
+        return True
 
     def _get_curtime(self):
         '''
@@ -455,13 +465,28 @@ class MatchMeta:
         self._tsList = self._tsList[::120] if self.drawCycle=='tick' else self._tsList
         ts = [self._sdk.getTime(i, strFormat='%Y-%m-%d %H:%M:%S') for i in self._tsList]
 
+        rows = 3
+        specs = [[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": True}]]
+        row_heights = [0.4,0.4,0.2]
+        if len(self.addition_plots):
+            rows = 4
+            row_heights = [0.3,0.3,0.2,0.2]
+            specs = [[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": True}], [{"secondary_y": False}]]
+        
+        # fig = make_subplots(
+        #     rows=3, 
+        #     cols=1, 
+        #     shared_xaxes=True, 
+        #     vertical_spacing=0.01, 
+        #     row_heights=[0.4,0.4,0.2], 
+        #     specs=[[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": True}]])
         fig = make_subplots(
-            rows=3, 
+            rows=rows, 
             cols=1, 
             shared_xaxes=True, 
             vertical_spacing=0.01, 
-            row_heights=[0.4,0.4,0.2], 
-            specs=[[{"secondary_y": False}], [{"secondary_y": False}], [{"secondary_y": True}]])
+            row_heights=row_heights, 
+            specs=specs)
 
         fig.add_trace(go.Scatter(x=ts, y=self._positions, name='position', line_color='rgba(170, 170, 170, 1)', opacity=0.8), row=3, col=1)
 
@@ -470,6 +495,15 @@ class MatchMeta:
         fig.add_trace(go.Scatter(x=ts, y=self.drawdownSeries, name='drawback', line_color='rgba(233, 97, 64, 1)'), row=1, col=1)
 
         fig.add_trace(go.Scatter(x=ts, y=self._marketList, name='price', line_color='rgba(255, 190, 66, 1)', opacity=0.8), row=2, col=1)
+
+        if self.addition_plots:
+            for v in self.addition_plots:
+                curTs = [self._sdk.getTime(i, strFormat='%Y-%m-%d %H:%M:%S') for i in v['ts']]
+                fig.add_trace(go.Scatter(x=curTs, y=v['data'], name=v['name'], mode=v['mode']), row=4, col=1)
+        if self.sub_market_plot:
+            for v in self.sub_market_plot:
+                curTs = [self._sdk.getTime(i, strFormat='%Y-%m-%d %H:%M:%S') for i in v['ts']]
+                fig.add_trace(go.Scatter(x=curTs, y=v['data'], name=v['name'], mode=v['mode']), row=2, col=1)
 
         profits = []
         profitsIdx = []
